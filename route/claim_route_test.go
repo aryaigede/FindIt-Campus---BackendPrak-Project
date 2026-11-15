@@ -39,12 +39,12 @@ func NewMockClaimRepository() *MockClaimRepository {
 
 func (m *MockClaimRepository) Create(ctx context.Context, c *model.Claim) error {
 	if m.Force23505 {
-		return repository.ErrConflict
+		return repository.ErrClaimConflict
 	}
 	// Check partial unique index: 1 pending per user per report
 	for _, existing := range m.Claims {
 		if existing.ReportID == c.ReportID && existing.ClaimantID == c.ClaimantID && existing.Status == model.ClaimStatusPending {
-			return repository.ErrConflict
+			return repository.ErrClaimConflict
 		}
 	}
 	c.ID = m.NextClaimID
@@ -107,7 +107,7 @@ func (m *MockClaimRepository) ReviewClaim(ctx context.Context, claimID int, revi
 			return nil, repository.ErrNotFound
 		}
 		if rep.Status != "open" {
-			return nil, repository.ErrConflict
+			return nil, repository.ErrClaimConflict
 		}
 		rep.Status = "claimed"
 
