@@ -28,14 +28,21 @@ func main() {
 	// Dependency Injection (dari dalam ke luar)
 	userRepo := repository.NewUserRepository(dbPool)
 	authService := service.NewAuthService(userRepo, cfg)
+	returnHistoryRepo := repository.NewReturnHistoryRepository(dbPool)
+	returnHistoryService := service.NewReturnHistoryService(returnHistoryRepo)
+
+	reportRepo := repository.NewReportRepository(dbPool)
+	reportService := service.NewReportService(reportRepo, cfg)
 
 	claimRepo := repository.NewClaimRepository(dbPool)
 	claimService := service.NewClaimService(claimRepo, cfg)
 
 	app := config.NewApp(cfg, logger)
 	route.Register(app, cfg, route.Services{
-		Auth:  authService,
-		Claim: claimService,
+		Auth:   authService,
+		Report: reportService,
+    Claim: claimService,
+		ReturnHistory: returnHistoryService,
 	})
 
 	// Jalankan server di goroutine dengan graceful shutdown
