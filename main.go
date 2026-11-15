@@ -29,9 +29,13 @@ func main() {
 	userRepo := repository.NewUserRepository(dbPool)
 	authService := service.NewAuthService(userRepo, cfg)
 
+	reportRepo := repository.NewReportRepository(dbPool)
+	reportService := service.NewReportService(reportRepo, cfg)
+
 	app := config.NewApp(cfg, logger)
 	route.Register(app, cfg, route.Services{
-		Auth: authService,
+		Auth:   authService,
+		Report: reportService,
 	})
 
 	// Jalankan server di goroutine dengan graceful shutdown
