@@ -1,4 +1,4 @@
-<img width="529" height="2268" alt="image" src="https://github.com/user-attachments/assets/90ce370e-9b8d-41a6-b4de-237fa5496532" /># FindIt-Campus---BackendPrak-Project
+FindIt-Campus---BackendPrak-Project
 FindIt Campus - Sistem Pelaporan Barang Hilang dan Ditemukan di Lingkungan Kampus
 
 ## Aktor & Hak Akses
