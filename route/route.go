@@ -12,6 +12,7 @@ import (
 type Services struct {
 	Auth   *service.AuthService
 	Report *service.ReportService
+  Claim *service.ClaimService
 	ReturnHistory *service.ReturnHistoryService
 }
 
@@ -34,7 +35,8 @@ func Register(app *fiber.App, cfg *config.Config, svc Services) {
 	if svc.Report != nil {
 		RegisterReportRoutes(api, cfg, svc)
 	}
-	// TODO (PIC 3): /claims
+  // Claims
+  RegisterClaimRoutes(api, cfg, svc.Claim)
 	// Return & History routes
 	registerReturnRoutes(api, cfg, svc.ReturnHistory)
 }

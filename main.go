@@ -34,10 +34,14 @@ func main() {
 	reportRepo := repository.NewReportRepository(dbPool)
 	reportService := service.NewReportService(reportRepo, cfg)
 
+	claimRepo := repository.NewClaimRepository(dbPool)
+	claimService := service.NewClaimService(claimRepo, cfg)
+
 	app := config.NewApp(cfg, logger)
 	route.Register(app, cfg, route.Services{
 		Auth:   authService,
 		Report: reportService,
+    Claim: claimService,
 		ReturnHistory: returnHistoryService,
 	})
 
