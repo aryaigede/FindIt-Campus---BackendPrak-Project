@@ -8,8 +8,11 @@ import (
 	"findit-campus-backend/helper"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrConflict = errors.New("conflict: claim already exists or violates constraint")
 
 type ClaimRepository interface {
 	Create(ctx context.Context, claim *model.Claim) error
@@ -38,6 +41,10 @@ func (r *claimRepository) Create(ctx context.Context, c *model.Claim) error {
 		c.ReportID, c.ClaimantID, c.ProofDescription, c.ProofImageURL,
 	).Scan(&c.ID, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrConflict
+		}
 		return err
 	}
 	return nil
