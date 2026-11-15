@@ -65,7 +65,7 @@ func (s *ClaimService) SubmitClaim(c *fiber.Ctx) error {
 	}
 
 	if err := s.claimRepo.Create(c.Context(), claim); err != nil {
-		if errors.Is(err, repository.ErrConflict) {
+		if errors.Is(err, repository.ErrClaimConflict) {
 			return helper.Fail(c, fiber.StatusConflict, "a pending claim already exists for this report by the user")
 		}
 		return helper.Fail(c, fiber.StatusInternalServerError, "failed to submit claim")
@@ -159,7 +159,7 @@ func (s *ClaimService) ReviewClaim(c *fiber.Ctx) error {
 		if errors.Is(err, repository.ErrAlreadyReviewed) {
 			return helper.Fail(c, fiber.StatusConflict, "claim has already been reviewed")
 		}
-		if errors.Is(err, repository.ErrConflict) {
+		if errors.Is(err, repository.ErrClaimConflict) {
 			return helper.Fail(c, fiber.StatusConflict, "report is already claimed or another claim has been approved")
 		}
 		return helper.Fail(c, fiber.StatusInternalServerError, "failed to review claim")
