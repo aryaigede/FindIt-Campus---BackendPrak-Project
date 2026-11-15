@@ -31,9 +31,13 @@ func main() {
 	returnHistoryRepo := repository.NewReturnHistoryRepository(dbPool)
 	returnHistoryService := service.NewReturnHistoryService(returnHistoryRepo)
 
+	reportRepo := repository.NewReportRepository(dbPool)
+	reportService := service.NewReportService(reportRepo, cfg)
+
 	app := config.NewApp(cfg, logger)
 	route.Register(app, cfg, route.Services{
-		Auth:          authService,
+		Auth:   authService,
+		Report: reportService,
 		ReturnHistory: returnHistoryService,
 	})
 

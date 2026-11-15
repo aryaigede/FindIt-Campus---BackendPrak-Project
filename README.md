@@ -37,3 +37,5 @@ FindIt Campus - Sistem Pelaporan Barang Hilang dan Ditemukan di Lingkungan Kampu
 | `claims`           | `id`, `report_id`, `claimant_id`, `reviewed_by`, `proof_description`, `proof_image_url`, `status`, `review_note`, `reviewed_at`, `created_at`, `updated_at` | Relasi ke `item_reports` dan `users`; dibatasi 1 klaim `approved` per laporan.                       |
 | `item_returns`     | `id`, `report_id`, `claim_id`, `handed_over_by`, `received_by`, `returned_at`, `notes`                                                                      | `report_id` → `item_reports.id` (unik), `claim_id` → `claims.id` (opsional/unik untuk alur `found`). |
 | `report_histories` | `id`, `report_id`, `actor_id`, `old_status`, `new_status`, `note`, `created_at`                                                                             | Mencatat transisi status pada `item_reports`.                                                        |
+
+<br>
