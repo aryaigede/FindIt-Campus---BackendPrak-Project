@@ -39,35 +39,3 @@ FindIt Campus - Sistem Pelaporan Barang Hilang dan Ditemukan di Lingkungan Kampu
 | `report_histories` | `id`, `report_id`, `actor_id`, `old_status`, `new_status`, `note`, `created_at`                                                                             | Mencatat transisi status pada `item_reports`.                                                        |
 
 <br>
-
-## Modul PIC 2 — Master Data & Pelaporan Barang
-
-Modul ini mencakup pengelolaan data master (kategori dan lokasi) serta siklus hidup pelaporan barang hilang (*lost*) dan ditemukan (*found*) beserta lampiran fotonya.
-
-### Kontrak Endpoint
-
-| Method | Endpoint | Akses | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/categories` | Public / Auth | Menampilkan daftar seluruh kategori barang. |
-| `GET` | `/api/v1/categories/:id` | Public / Auth | Menampilkan detail kategori berdasarkan ID. |
-| `POST` | `/api/v1/categories` | Admin | Menambahkan kategori baru (`name` unik wajib diisi). |
-| `PUT` | `/api/v1/categories/:id` | Admin | Memperbarui nama atau deskripsi kategori. |
-| `DELETE` | `/api/v1/categories/:id` | Admin | Menghapus kategori (dilindungi constraint jika masih dipakai laporan). |
-| `GET` | `/api/v1/locations` | Public / Auth | Menampilkan daftar seluruh lokasi kampus. |
-| `GET` | `/api/v1/locations/:id` | Public / Auth | Menampilkan detail lokasi berdasarkan ID. |
-| `POST` | `/api/v1/locations` | Admin | Menambahkan lokasi baru (`name` unik wajib diisi). |
-| `PUT` | `/api/v1/locations/:id` | Admin | Memperbarui nama atau deskripsi lokasi. |
-| `DELETE` | `/api/v1/locations/:id` | Admin | Menghapus lokasi (dilindungi constraint jika masih dipakai laporan). |
-| `GET` | `/api/v1/reports` | Public / Auth | Daftar laporan dengan paginasi (`page`, `limit`) dan filter (`report_type`, `category_id`, `location_id`, `status`, `search`). |
-| `GET` | `/api/v1/reports/:id` | Public / Auth | Detail lengkap laporan beserta lampiran foto (`item_images`). |
-| `POST` | `/api/v1/reports` | Auth (Semua Role) | Membuat laporan *lost* atau *found* (status awal selalu `open`, dicatat ke `report_histories`). |
-| `PUT` / `PATCH` | `/api/v1/reports/:id` | Owner / Admin | Memperbarui laporan (hanya dapat diubah saat status `open`). |
-| `PATCH` | `/api/v1/reports/:id/close` | Owner / Admin | Menutup laporan (transisi status `open` → `closed`, dicatat ke `report_histories`). |
-| `POST` | `/api/v1/reports/:id/images` | Owner / Admin | Mengunggah URL foto barang (maksimal 5 foto per laporan). |
-
-### Aturan Bisnis & Integritas Data
-
-1. **Integritas Master Data:** Nama kategori dan lokasi bersifat unik (`SQLSTATE 23505` menghasilkan respons `409 Conflict`). Data master yang masih memiliki relasi di tabel `item_reports` tidak dapat dihapus (`SQLSTATE 23503` menghasilkan respons `409 Conflict`).
-2. **Audit Log Transaksi:** Pembuatan laporan baru (`open`) dan penutupan laporan (`closed`) dieksekusi dalam satu transaksi atomik database (`pgx.Tx`) bersama penyisipan riwayat ke `report_histories`.
-3. **Keamanan & Otorisasi:** Modifikasi laporan (`update`, `close`, `add image`) dibatasi hanya untuk pemilik laporan (*owner*) atau user dengan role `admin` (akses tidak sah menghasilkan `403 Forbidden`).
-4. **Pencegahan SQL Injection:** Seluruh query pencarian dan penyaringan paginasi menggunakan *parameterized queries* (`$1, $2, ...`) tanpa konkatenasi string input langsung.
