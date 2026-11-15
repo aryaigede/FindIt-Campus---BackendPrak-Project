@@ -126,3 +126,44 @@ func (s *ClaimService) ListClaims(c *fiber.Ctx) error {
 
 	return helper.SuccessList(c, "claims retrieved successfully", claims, meta)
 }
+
+// ReviewClaim handles PATCH /api/v1/claims/:id/review (security/admin)
+func (s *ClaimService) ReviewClaim(c *fiber.Ctx) error {
+	claimID, err := helper.ParamID(c, "id")
+	if err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "invalid claim id")
+	}
+
+	reviewerID, ok := c.Locals("user_id").(int)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	var req model.ReviewClaimRequest
+	if err := c.BodyParser(&req); err != nil {
+		return helper.Fail(c, fiber.StatusBadRequest, "invalid JSON payload")
+	}
+
+	if errs := ValidateReviewClaimInput(req); len(errs) > 0 {
+		return helper.FailValidation(c, "validation failed", errs)
+	}
+
+	newStatus := strings.TrimSpace(strings.ToLower(req.Status))
+	reviewNote := strings.TrimSpace(req.ReviewNote)
+
+	updatedClaim, err := s.claimRepo.ReviewClaim(c.Context(), claimID, reviewerID, newStatus, reviewNote)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return helper.Fail(c, fiber.StatusNotFound, "claim not found")
+		}
+		if errors.Is(err, repository.ErrAlreadyReviewed) {
+			return helper.Fail(c, fiber.StatusConflict, "claim has already been reviewed")
+		}
+		if errors.Is(err, repository.ErrConflict) {
+			return helper.Fail(c, fiber.StatusConflict, "report is already claimed or another claim has been approved")
+		}
+		return helper.Fail(c, fiber.StatusInternalServerError, "failed to review claim")
+	}
+
+	return helper.Success(c, "claim reviewed successfully", updatedClaim)
+}
