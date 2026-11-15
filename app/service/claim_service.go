@@ -73,3 +73,56 @@ func (s *ClaimService) SubmitClaim(c *fiber.Ctx) error {
 
 	return helper.Created(c, "claim submitted successfully", claim)
 }
+
+// GetMyClaims handles GET /api/v1/claims/me
+func (s *ClaimService) GetMyClaims(c *fiber.Ctx) error {
+	claimantID, ok := c.Locals("user_id").(int)
+	if !ok {
+		return helper.Fail(c, fiber.StatusUnauthorized, "unauthorized")
+	}
+
+	q := helper.ParseListQuery(c)
+	claims, total, err := s.claimRepo.FindByClaimantID(c.Context(), claimantID, q)
+	if err != nil {
+		return helper.Fail(c, fiber.StatusInternalServerError, "failed to retrieve claims")
+	}
+
+	totalPages := 0
+	if q.Limit > 0 {
+		totalPages = int((total + int64(q.Limit) - 1) / int64(q.Limit))
+	}
+
+	meta := helper.PaginationMeta{
+		Page:       q.Page,
+		Limit:      q.Limit,
+		TotalItems: total,
+		TotalPages: totalPages,
+	}
+
+	return helper.SuccessList(c, "claims retrieved successfully", claims, meta)
+}
+
+// ListClaims handles GET /api/v1/claims (security/admin)
+func (s *ClaimService) ListClaims(c *fiber.Ctx) error {
+	status := strings.TrimSpace(strings.ToLower(c.Query("status", "")))
+
+	q := helper.ParseListQuery(c)
+	claims, total, err := s.claimRepo.FindAll(c.Context(), status, q)
+	if err != nil {
+		return helper.Fail(c, fiber.StatusInternalServerError, "failed to retrieve claims")
+	}
+
+	totalPages := 0
+	if q.Limit > 0 {
+		totalPages = int((total + int64(q.Limit) - 1) / int64(q.Limit))
+	}
+
+	meta := helper.PaginationMeta{
+		Page:       q.Page,
+		Limit:      q.Limit,
+		TotalItems: total,
+		TotalPages: totalPages,
+	}
+
+	return helper.SuccessList(c, "claims retrieved successfully", claims, meta)
+}
