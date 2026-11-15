@@ -23,16 +23,3 @@ FindIt Campus - Sistem Pelaporan Barang Hilang dan Ditemukan di Lingkungan Kampu
 8. **Riwayat Status:** Audit log setiap perubahan status laporan beserta aktor yang melakukannya.
 
 <br>
-
-## Fitur Utama
-
-1. **Autentikasi & Profil:** Registrasi dan login berbasis JWT beserta manajemen profil. *(Implementasi utuh pada tahap boilerplate)*
-2. **Laporan Barang:** Pembuatan laporan *lost* atau *found* lengkap dengan kategori, lokasi, tanggal kejadian, dan foto.
-3. **Pencarian & Filter:** Daftar laporan dengan filter jenis laporan, kategori, lokasi, dan status (`open`, `claimed`, `returned`, `closed`).
-4. **Detail Laporan:** Informasi lengkap barang beserta lampiran foto.
-5. **Pengajuan Klaim:** Pengajuan klaim oleh pengguna pada laporan *found* berstatus `open` dengan bukti kepemilikan.
-6. **Verifikasi Klaim:** Peninjauan klaim oleh petugas (`approved` / `rejected`) beserta catatan verifikasi.
-7. **Serah Terima Barang:** Pencatatan petugas penyerah, penerima, waktu pengembalian, dan catatan.
-8. **Riwayat Status:** Audit log setiap perubahan status laporan beserta aktor yang melakukannya.
-
-<br>
