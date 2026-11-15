@@ -28,10 +28,13 @@ func main() {
 	// Dependency Injection (dari dalam ke luar)
 	userRepo := repository.NewUserRepository(dbPool)
 	authService := service.NewAuthService(userRepo, cfg)
+	returnHistoryRepo := repository.NewReturnHistoryRepository(dbPool)
+	returnHistoryService := service.NewReturnHistoryService(returnHistoryRepo)
 
 	app := config.NewApp(cfg, logger)
 	route.Register(app, cfg, route.Services{
-		Auth: authService,
+		Auth:          authService,
+		ReturnHistory: returnHistoryService,
 	})
 
 	// Jalankan server di goroutine dengan graceful shutdown
