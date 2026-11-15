@@ -13,6 +13,7 @@ import (
 )
 
 var ErrConflict = errors.New("conflict: claim already exists or violates constraint")
+var ErrAlreadyReviewed = errors.New("claim has already been reviewed")
 
 type ClaimRepository interface {
 	Create(ctx context.Context, claim *model.Claim) error
@@ -20,6 +21,7 @@ type ClaimRepository interface {
 	FindByClaimantID(ctx context.Context, claimantID int, q helper.ListQuery) ([]model.Claim, int64, error)
 	FindAll(ctx context.Context, status string, q helper.ListQuery) ([]model.Claim, int64, error)
 	FindReportForClaim(ctx context.Context, reportID int) (*model.ClaimReportLookup, error)
+	ReviewClaim(ctx context.Context, claimID int, reviewerID int, newStatus string, reviewNote string) (*model.Claim, error)
 }
 
 type claimRepository struct {
@@ -179,4 +181,130 @@ func (r *claimRepository) FindReportForClaim(ctx context.Context, reportID int) 
 		return nil, err
 	}
 	return &rep, nil
+}
+
+func (r *claimRepository) ReviewClaim(ctx context.Context, claimID int, reviewerID int, newStatus string, reviewNote string) (*model.Claim, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var (
+		currentStatus string
+		reportID      int
+	)
+	claimCheckQuery := `SELECT status, report_id FROM claims WHERE id = $1 FOR UPDATE`
+	err = tx.QueryRow(ctx, claimCheckQuery, claimID).Scan(&currentStatus, &reportID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	if currentStatus != model.ClaimStatusPending {
+		return nil, ErrAlreadyReviewed
+	}
+
+	var updatedClaim model.Claim
+	if newStatus == model.ClaimStatusApproved {
+		var reportStatus string
+		err = tx.QueryRow(ctx, `SELECT status FROM item_reports WHERE id = $1 FOR UPDATE`, reportID).Scan(&reportStatus)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrNotFound
+			}
+			return nil, err
+		}
+		if reportStatus != "open" {
+			return nil, ErrConflict
+		}
+
+		updateClaimQuery := `
+			UPDATE claims
+			SET status = 'approved', reviewed_by = $2, review_note = $3, reviewed_at = NOW(), updated_at = NOW()
+			WHERE id = $1
+			RETURNING id, report_id, claimant_id, reviewed_by, proof_description, proof_image_url,
+			          status, review_note, reviewed_at, created_at, updated_at
+		`
+		err = tx.QueryRow(ctx, updateClaimQuery, claimID, reviewerID, reviewNote).Scan(
+			&updatedClaim.ID, &updatedClaim.ReportID, &updatedClaim.ClaimantID, &updatedClaim.ReviewedBy,
+			&updatedClaim.ProofDescription, &updatedClaim.ProofImageURL, &updatedClaim.Status,
+			&updatedClaim.ReviewNote, &updatedClaim.ReviewedAt, &updatedClaim.CreatedAt, &updatedClaim.UpdatedAt,
+		)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return nil, ErrConflict
+			}
+			return nil, err
+		}
+
+		autoRejectQuery := `
+			UPDATE claims
+			SET status = 'rejected', reviewed_by = $2, review_note = 'Auto-rejected: another claim was approved',
+			    reviewed_at = NOW(), updated_at = NOW()
+			WHERE report_id = $1 AND id != $3 AND status = 'pending'
+		`
+		if _, err := tx.Exec(ctx, autoRejectQuery, reportID, reviewerID, claimID); err != nil {
+			return nil, err
+		}
+
+		updateReportQuery := `
+			UPDATE item_reports
+			SET status = 'claimed', updated_at = NOW()
+			WHERE id = $1
+		`
+		if _, err := tx.Exec(ctx, updateReportQuery, reportID); err != nil {
+			return nil, err
+		}
+
+		insertHistoryQuery := `
+			INSERT INTO report_histories (report_id, actor_id, old_status, new_status, note, created_at)
+			VALUES ($1, $2, $3, 'claimed', $4, NOW())
+		`
+		historyNote := "Claim approved"
+		if reviewNote != "" {
+			historyNote = "Claim approved: " + reviewNote
+		}
+		if _, err := tx.Exec(ctx, insertHistoryQuery, reportID, reviewerID, reportStatus, historyNote); err != nil {
+			return nil, err
+		}
+	} else {
+		updateClaimQuery := `
+			UPDATE claims
+			SET status = 'rejected', reviewed_by = $2, review_note = $3, reviewed_at = NOW(), updated_at = NOW()
+			WHERE id = $1
+			RETURNING id, report_id, claimant_id, reviewed_by, proof_description, proof_image_url,
+			          status, review_note, reviewed_at, created_at, updated_at
+		`
+		err = tx.QueryRow(ctx, updateClaimQuery, claimID, reviewerID, reviewNote).Scan(
+			&updatedClaim.ID, &updatedClaim.ReportID, &updatedClaim.ClaimantID, &updatedClaim.ReviewedBy,
+			&updatedClaim.ProofDescription, &updatedClaim.ProofImageURL, &updatedClaim.Status,
+			&updatedClaim.ReviewNote, &updatedClaim.ReviewedAt, &updatedClaim.CreatedAt, &updatedClaim.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrConflict
+		}
+		return nil, err
+	}
+
+	_ = r.db.QueryRow(ctx, `
+		SELECT u.name, rev.name, rep.title
+		FROM claims c
+		JOIN users u ON c.claimant_id = u.id
+		LEFT JOIN users rev ON c.reviewed_by = rev.id
+		JOIN item_reports rep ON c.report_id = rep.id
+		WHERE c.id = $1
+	`, updatedClaim.ID).Scan(&updatedClaim.ClaimantName, &updatedClaim.ReviewerName, &updatedClaim.ReportTitle)
+
+	return &updatedClaim, nil
 }
