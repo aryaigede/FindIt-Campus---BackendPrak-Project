@@ -12,7 +12,7 @@ import (
 type Services struct {
 	Auth   *service.AuthService
 	Report *service.ReportService
-	// Anggota tim (PIC 3, 4) menambahkan field service di sini saat PR fitur masing-masing
+	ReturnHistory *service.ReturnHistoryService
 }
 
 func Register(app *fiber.App, cfg *config.Config, svc Services) {
@@ -24,16 +24,17 @@ func Register(app *fiber.App, cfg *config.Config, svc Services) {
 
 	api := app.Group("/api/v1")
 
-	// Auth routes (Utuh - PIC 1)
+	// Auth routes 
 	auth := api.Group("/auth")
 	auth.Post("/register", middleware.RequireJSON, svc.Auth.Register)
 	auth.Post("/login", middleware.RequireJSON, svc.Auth.Login)
 	auth.Get("/me", middleware.Protected(cfg.JWTSecret), svc.Auth.Me)
 
-	// Categories, Locations, Reports (PIC 2)
+	// Categories, Locations, Reports 
 	if svc.Report != nil {
 		RegisterReportRoutes(api, cfg, svc)
 	}
 	// TODO (PIC 3): /claims
-	// TODO (PIC 4): /returns, /reports/:id/histories
+	// Return & History routes
+	registerReturnRoutes(api, cfg, svc.ReturnHistory)
 }
