@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrConflict = errors.New("conflict: claim already exists or violates constraint")
+var ErrClaimConflict = errors.New("conflict: claim already exists or violates constraint")
 var ErrAlreadyReviewed = errors.New("claim has already been reviewed")
 
 type ClaimRepository interface {
@@ -45,7 +45,7 @@ func (r *claimRepository) Create(ctx context.Context, c *model.Claim) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return ErrConflict
+			return ErrClaimConflict
 		}
 		return err
 	}
@@ -218,7 +218,7 @@ func (r *claimRepository) ReviewClaim(ctx context.Context, claimID int, reviewer
 			return nil, err
 		}
 		if reportStatus != "open" {
-			return nil, ErrConflict
+			return nil, ErrClaimConflict
 		}
 
 		updateClaimQuery := `
@@ -236,7 +236,7 @@ func (r *claimRepository) ReviewClaim(ctx context.Context, claimID int, reviewer
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				return nil, ErrConflict
+				return nil, ErrClaimConflict
 			}
 			return nil, err
 		}
@@ -292,7 +292,7 @@ func (r *claimRepository) ReviewClaim(ctx context.Context, claimID int, reviewer
 	if err := tx.Commit(ctx); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil, ErrConflict
+			return nil, ErrClaimConflict
 		}
 		return nil, err
 	}
